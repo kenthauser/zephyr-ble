@@ -586,6 +586,28 @@ uint8_t ll_sync_terminate(uint16_t handle)
 #endif /* !CONFIG_BT_CTLR_SCAN_AUX_USE_CHAINS */
 	}
 
+#if !defined(CONFIG_BT_CTLR_SCAN_AUX_USE_CHAINS)
+	/* Mirror the scan-context sweep in ull_scan_disable() and stop it by
+	 * parent. Harmless when no such context exists, as the loop finds none.
+	 */
+	for (uint8_t aux_handle = 0; aux_handle < CONFIG_BT_CTLR_SCAN_AUX_SET;
+	     aux_handle++) {
+		struct ll_scan_aux_set *aux_set;
+
+		aux_set = ull_scan_aux_set_get(aux_handle);
+		if (aux_set->parent != &sync->lll) {
+			continue;
+		}
+
+		err = ull_scan_aux_stop(aux_set);
+		if (err && (err != -EALREADY)) {
+			return BT_HCI_ERR_CMD_DISALLOWED;
+		}
+
+		LL_ASSERT_DBG(aux_set->parent != &sync->lll);
+	}
+#endif /* !CONFIG_BT_CTLR_SCAN_AUX_USE_CHAINS */
+
 #if defined(CONFIG_BT_CTLR_SYNC_TRANSFER_RECEIVER)
 	/* Clean up node_rx_sync_estab if still present */
 	if (sync->node_rx_sync_estab) {
