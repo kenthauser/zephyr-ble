@@ -234,3 +234,13 @@ extern struct lll_conn *ull_conn_lll_get(uint16_t handle);
 extern void ull_conn_lll_tx_demux_sched(struct lll_conn *lll);
 extern void ull_conn_lll_ack_enqueue(uint16_t handle, struct node_tx *tx);
 extern uint16_t ull_conn_lll_max_tx_octets_get(struct lll_conn *lll);
+
+#if defined(CONFIG_BT_CTLR_CONN_META)
+/* Vendor initializer for the connection meta member, called at each
+ * construction site after every native member has its initial value.
+ * Defined by the vendor LLL that enables CONFIG_BT_CTLR_CONN_META. It
+ * writes memory only: radio resources are acquired after the connection
+ * request, never here.
+ */
+void lll_conn_meta_init(struct lll_conn *lll);
+#endif /* CONFIG_BT_CTLR_CONN_META */

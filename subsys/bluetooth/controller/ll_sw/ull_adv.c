@@ -1095,6 +1095,11 @@ uint8_t ll_adv_enable(uint8_t enable)
 		conn_lll->df_tx_cfg.is_initialized = 0U;
 		conn_lll->df_tx_cfg.cte_rsp_en = 0U;
 #endif /* CONFIG_BT_CTLR_DF_CONN_CTE_TX */
+
+#if defined(CONFIG_BT_CTLR_CONN_META)
+		lll_conn_meta_init(conn_lll);
+#endif /* CONFIG_BT_CTLR_CONN_META */
+
 		conn->event_counter = 0U;
 		conn->connect_expire = CONN_ESTAB_COUNTDOWN;
 		conn->supervision_expire = 0;
