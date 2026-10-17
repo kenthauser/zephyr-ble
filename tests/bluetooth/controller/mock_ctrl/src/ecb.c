@@ -12,3 +12,14 @@ __attribute__((weak)) void ecb_encrypt(uint8_t const *const key_le,
 				       uint8_t *const cipher_text_le, uint8_t *const cipher_text_be)
 {
 }
+
+__attribute__((weak)) bool ecb_acquire(uint8_t caller_id)
+{
+	ARG_UNUSED(caller_id);
+
+	return true;
+}
+
+__attribute__((weak)) void ecb_release(void)
+{
+}
