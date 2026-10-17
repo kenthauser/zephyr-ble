@@ -102,74 +102,19 @@
 #define PDU_DC_PAYLOAD_TIME_MAX       2120
 #endif /* !CONFIG_BT_CTLR_DF */
 
-/* Data channel control PDU maximum payload size */
+/* Data channel control PDU maximum payload size, per direction: the largest
+ * control PDU the configuration can transmit (TX) or receive (RX), opcode
+ * included. The members of union pdu_dc_ctrl_tx_max and pdu_dc_ctrl_rx_max
+ * below are the PDUs that bound each direction.
+ */
 #if defined(CONFIG_BT_CONN)
-#if defined(CONFIG_BT_CTLR_CONN_ISO)
-#if defined(CONFIG_BT_CENTRAL) && defined(CONFIG_BT_PERIPHERAL)
-/* Isochronous Central and Peripheral */
-#define PDU_DC_CTRL_TX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(cis_req)
-#define PDU_DC_CTRL_RX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(cis_req)
-#elif defined(CONFIG_BT_CENTRAL)
-/* Isochronous Central */
-#define PDU_DC_CTRL_TX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(cis_req)
-#if defined(CONFIG_BT_CTLR_CONN_PARAM_REQ)
-#define PDU_DC_CTRL_RX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(conn_param_req)
-#elif defined(CONFIG_BT_CTLR_LE_ENC)
-#define PDU_DC_CTRL_RX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(enc_rsp)
-#else /* !CONFIG_BT_CTLR_LE_ENC */
-#define PDU_DC_CTRL_RX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(cis_rsp)
-#endif /* !CONFIG_BT_CTLR_LE_ENC */
-#elif defined(CONFIG_BT_PERIPHERAL)
-/* Isochronous Peripheral */
-#if defined(CONFIG_BT_CTLR_CONN_PARAM_REQ)
-#define PDU_DC_CTRL_TX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(conn_param_req)
-#elif defined(CONFIG_BT_CTLR_LE_ENC)
-#define PDU_DC_CTRL_TX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(enc_rsp)
-#else /* !CONFIG_BT_CTLR_LE_ENC */
-#define PDU_DC_CTRL_TX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(cis_rsp)
-#endif /* !CONFIG_BT_CTLR_LE_ENC */
-#define PDU_DC_CTRL_RX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(cis_req)
-#endif /* !CONFIG_BT_PERIPHERAL */
-
-#elif defined(CONFIG_BT_CTLR_CONN_PARAM_REQ)
-/* Central and Peripheral with Connection Parameter Request */
-#define PDU_DC_CTRL_TX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(conn_param_req)
-#define PDU_DC_CTRL_RX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(conn_param_req)
-
-#elif defined(CONFIG_BT_CTLR_LE_ENC)
-#if defined(CONFIG_BT_CENTRAL) && defined(CONFIG_BT_PERIPHERAL)
-/* Central and Peripheral with encryption */
-#define PDU_DC_CTRL_TX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(enc_req)
-#define PDU_DC_CTRL_RX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(enc_req)
-#elif defined(CONFIG_BT_CENTRAL)
-/* Central with encryption */
-#define PDU_DC_CTRL_TX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(enc_req)
-#define PDU_DC_CTRL_RX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(enc_rsp)
-#elif defined(CONFIG_BT_PERIPHERAL)
-/* Peripheral with encryption */
-#define PDU_DC_CTRL_TX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(enc_rsp)
-#define PDU_DC_CTRL_RX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(enc_req)
-#endif /* !CONFIG_BT_PERIPHERAL */
-
-#else /* !CONFIG_BT_CTLR_LE_ENC */
-#if defined(CONFIG_BT_CENTRAL) && defined(CONFIG_BT_PERIPHERAL)
-/* Central and Peripheral without encryption */
-#define PDU_DC_CTRL_TX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(conn_update_ind)
-#define PDU_DC_CTRL_RX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(conn_update_ind)
-#elif defined(CONFIG_BT_CENTRAL)
-/* Central without encryption */
-#define PDU_DC_CTRL_TX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(conn_update_ind)
-#define PDU_DC_CTRL_RX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(feature_rsp)
-#elif defined(CONFIG_BT_PERIPHERAL)
-/* Peripheral without encryption */
-#define PDU_DC_CTRL_TX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(feature_rsp)
-#define PDU_DC_CTRL_RX_SIZE_MAX       PDU_DATA_LLCTRL_LEN(conn_update_ind)
-#endif /* !CONFIG_BT_PERIPHERAL */
-#endif /* !CONFIG_BT_CTLR_LE_ENC */
-
+#define PDU_DC_CTRL_TX_SIZE_MAX (offsetof(struct pdu_data_llctrl, feature_rsp) + \
+				 sizeof(union pdu_dc_ctrl_tx_max))
+#define PDU_DC_CTRL_RX_SIZE_MAX (offsetof(struct pdu_data_llctrl, feature_rsp) + \
+				 sizeof(union pdu_dc_ctrl_rx_max))
 #else /* !CONFIG_BT_CONN */
-#define PDU_DC_CTRL_TX_SIZE_MAX       0U
-#define PDU_DC_CTRL_RX_SIZE_MAX       0U
+#define PDU_DC_CTRL_TX_SIZE_MAX 0U
+#define PDU_DC_CTRL_RX_SIZE_MAX 0U
 #endif /* !CONFIG_BT_CONN */
 
 /* Link Layer header size of Data PDU. Assumes pdu_data is packed */
@@ -955,6 +900,58 @@ struct pdu_data_llctrl {
 
 #define PDU_DATA_LLCTRL_LEN(type) (offsetof(struct pdu_data_llctrl, type) + \
 				   sizeof(struct pdu_data_llctrl_ ## type))
+
+#if defined(CONFIG_BT_CONN)
+/* Control PDUs that bound PDU_DC_CTRL_TX_SIZE_MAX: the largest each role
+ * and feature can transmit.
+ */
+union pdu_dc_ctrl_tx_max {
+	struct pdu_data_llctrl_feature_rsp feature_rsp;
+#if defined(CONFIG_BT_CENTRAL)
+	struct pdu_data_llctrl_conn_update_ind conn_update_ind;
+#endif /* CONFIG_BT_CENTRAL */
+#if defined(CONFIG_BT_CTLR_LE_ENC) && defined(CONFIG_BT_CENTRAL)
+	struct pdu_data_llctrl_enc_req enc_req;
+#endif /* CONFIG_BT_CTLR_LE_ENC && CONFIG_BT_CENTRAL */
+#if defined(CONFIG_BT_CTLR_LE_ENC) && defined(CONFIG_BT_PERIPHERAL)
+	struct pdu_data_llctrl_enc_rsp enc_rsp;
+#endif /* CONFIG_BT_CTLR_LE_ENC && CONFIG_BT_PERIPHERAL */
+#if defined(CONFIG_BT_CTLR_CONN_PARAM_REQ)
+	struct pdu_data_llctrl_conn_param_req conn_param_req;
+#endif /* CONFIG_BT_CTLR_CONN_PARAM_REQ */
+#if defined(CONFIG_BT_CTLR_CONN_ISO) && defined(CONFIG_BT_CENTRAL)
+	struct pdu_data_llctrl_cis_req cis_req;
+#endif /* CONFIG_BT_CTLR_CONN_ISO && CONFIG_BT_CENTRAL */
+#if defined(CONFIG_BT_CTLR_CONN_ISO) && defined(CONFIG_BT_PERIPHERAL)
+	struct pdu_data_llctrl_cis_rsp cis_rsp;
+#endif /* CONFIG_BT_CTLR_CONN_ISO && CONFIG_BT_PERIPHERAL */
+} __packed;
+
+/* Control PDUs that bound PDU_DC_CTRL_RX_SIZE_MAX: the largest each role
+ * and feature can receive.
+ */
+union pdu_dc_ctrl_rx_max {
+	struct pdu_data_llctrl_feature_rsp feature_rsp;
+#if defined(CONFIG_BT_PERIPHERAL)
+	struct pdu_data_llctrl_conn_update_ind conn_update_ind;
+#endif /* CONFIG_BT_PERIPHERAL */
+#if defined(CONFIG_BT_CTLR_LE_ENC) && defined(CONFIG_BT_PERIPHERAL)
+	struct pdu_data_llctrl_enc_req enc_req;
+#endif /* CONFIG_BT_CTLR_LE_ENC && CONFIG_BT_PERIPHERAL */
+#if defined(CONFIG_BT_CTLR_LE_ENC) && defined(CONFIG_BT_CENTRAL)
+	struct pdu_data_llctrl_enc_rsp enc_rsp;
+#endif /* CONFIG_BT_CTLR_LE_ENC && CONFIG_BT_CENTRAL */
+#if defined(CONFIG_BT_CTLR_CONN_PARAM_REQ)
+	struct pdu_data_llctrl_conn_param_req conn_param_req;
+#endif /* CONFIG_BT_CTLR_CONN_PARAM_REQ */
+#if defined(CONFIG_BT_CTLR_CONN_ISO) && defined(CONFIG_BT_PERIPHERAL)
+	struct pdu_data_llctrl_cis_req cis_req;
+#endif /* CONFIG_BT_CTLR_CONN_ISO && CONFIG_BT_PERIPHERAL */
+#if defined(CONFIG_BT_CTLR_CONN_ISO) && defined(CONFIG_BT_CENTRAL)
+	struct pdu_data_llctrl_cis_rsp cis_rsp;
+#endif /* CONFIG_BT_CTLR_CONN_ISO && CONFIG_BT_CENTRAL */
+} __packed;
+#endif /* CONFIG_BT_CONN */
 
 #if defined(CONFIG_BT_CTLR_PROFILE_ISR)
 struct profile {
