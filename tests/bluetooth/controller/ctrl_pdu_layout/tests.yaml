@@ -1,0 +1,7 @@
+common:
+  tags:
+    - bluetooth
+    - bt_ull
+tests:
+  bluetooth.controller.ctrl_pdu_layout.default:
+    type: unit
