@@ -68,7 +68,13 @@
 
 #define LLCTRL_PDU_SIZE (offsetof(struct pdu_data, llctrl) + sizeof(struct pdu_data_llctrl))
 #define PROC_CTX_BUF_SIZE WB_UP(sizeof(struct proc_ctx))
-#define TX_CTRL_BUF_SIZE WB_UP(offsetof(struct node_tx, pdu) + LLCTRL_PDU_SIZE)
+
+#if !defined(BT_CTLR_USER_TX_BUFFER_OVERHEAD)
+#define BT_CTLR_USER_TX_BUFFER_OVERHEAD 0
+#endif /* !BT_CTLR_USER_TX_BUFFER_OVERHEAD */
+
+#define TX_CTRL_BUF_SIZE WB_UP(offsetof(struct node_tx, pdu) + LLCTRL_PDU_SIZE + \
+			       BT_CTLR_USER_TX_BUFFER_OVERHEAD)
 #define NTF_BUF_SIZE WB_UP(offsetof(struct node_rx_pdu, pdu) + LLCTRL_PDU_SIZE)
 #define OFFSET_BASE_MAX_VALUE 0x1FFF
 
