@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+
+source "tests/bluetooth/controller/common/Kconfig"
+
+# Include Zephyr's Kconfig
+source "Kconfig"
