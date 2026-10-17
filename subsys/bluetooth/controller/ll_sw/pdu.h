@@ -925,6 +925,9 @@ union pdu_dc_ctrl_tx_max {
 #if defined(CONFIG_BT_CTLR_CONN_ISO) && defined(CONFIG_BT_PERIPHERAL)
 	struct pdu_data_llctrl_cis_rsp cis_rsp;
 #endif /* CONFIG_BT_CTLR_CONN_ISO && CONFIG_BT_PERIPHERAL */
+#if defined(CONFIG_BT_CTLR_SYNC_TRANSFER_SENDER)
+	struct pdu_data_llctrl_periodic_sync_ind periodic_sync_ind;
+#endif /* CONFIG_BT_CTLR_SYNC_TRANSFER_SENDER */
 } __packed;
 
 /* Control PDUs that bound PDU_DC_CTRL_RX_SIZE_MAX: the largest each role
@@ -950,6 +953,9 @@ union pdu_dc_ctrl_rx_max {
 #if defined(CONFIG_BT_CTLR_CONN_ISO) && defined(CONFIG_BT_CENTRAL)
 	struct pdu_data_llctrl_cis_rsp cis_rsp;
 #endif /* CONFIG_BT_CTLR_CONN_ISO && CONFIG_BT_CENTRAL */
+#if defined(CONFIG_BT_CTLR_SYNC_TRANSFER_RECEIVER)
+	struct pdu_data_llctrl_periodic_sync_ind periodic_sync_ind;
+#endif /* CONFIG_BT_CTLR_SYNC_TRANSFER_RECEIVER */
 } __packed;
 #endif /* CONFIG_BT_CONN */
 
