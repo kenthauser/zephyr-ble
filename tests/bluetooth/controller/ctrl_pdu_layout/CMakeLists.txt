@@ -17,3 +17,9 @@ target_include_directories(testbinary PRIVATE
 target_sources(testbinary PRIVATE
   src/main.c
 )
+
+# The meta scenarios supply their own vendor meta data header; no in-tree
+# LLL enables PDU meta data (both lll_meta.h files #error on it).
+if(CONFIG_BT_CTLR_RX_PDU_META OR CONFIG_BT_CTLR_TX_PDU_META)
+  target_include_directories(testbinary BEFORE PRIVATE meta)
+endif()

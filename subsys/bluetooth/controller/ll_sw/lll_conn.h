@@ -35,13 +35,31 @@ struct lll_tx {
 	void *node;
 };
 
+#if defined(CONFIG_BT_CTLR_TX_PDU_META)
+#include "lll_meta.h"
+
+#ifndef LLL_TX_PDU_META_PDU_OFFSET
+#define LLL_TX_PDU_META_PDU_OFFSET sizeof(lll_tx_pdu_meta_t)
+#endif /* !LLL_TX_PDU_META_PDU_OFFSET */
+#endif /* CONFIG_BT_CTLR_TX_PDU_META */
+
 struct node_tx {
 	union {
 		void        *next;
 		memq_link_t *link;
 	};
 
+#if defined(CONFIG_BT_CTLR_TX_PDU_META)
+	union {
+		lll_tx_pdu_meta_t tx_pdu_meta __aligned(4);
+		struct {
+			uint8_t _pdu_offset[LLL_TX_PDU_META_PDU_OFFSET];
+			uint8_t pdu[0];
+		};
+	};
+#else /* !CONFIG_BT_CTLR_TX_PDU_META */
 	uint8_t pdu[];
+#endif /* !CONFIG_BT_CTLR_TX_PDU_META */
 };
 
 #if defined(CONFIG_BT_CTLR_DATA_LENGTH)
