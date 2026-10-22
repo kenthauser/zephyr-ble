@@ -6,6 +6,10 @@
 
 #if defined(CONFIG_BT_CTLR_RX_PDU_META)
 #include "lll_meta.h"
+
+#ifndef LLL_RX_PDU_META_PDU_OFFSET
+#define LLL_RX_PDU_META_PDU_OFFSET sizeof(lll_rx_pdu_meta_t)
+#endif /* !LLL_RX_PDU_META_PDU_OFFSET */
 #endif /* CONFIG_BT_CTLR_RX_PDU_META */
 
 #define TICKER_INSTANCE_ID_CTLR 0
@@ -434,8 +438,8 @@ struct node_rx_hdr {
 };
 
 
-/* Template node rx type with memory aligned offset to PDU buffer.
- * NOTE: offset to memory aligned pdu buffer location is used to reference
+/* Template node rx type with offset to PDU buffer.
+ * NOTE: offset to pdu buffer location is used to reference
  *       node rx type specific information, like, terminate or sync lost reason
  *       from a dedicated node rx structure storage location.
  */
@@ -446,13 +450,20 @@ struct node_rx_pdu {
 #if defined(CONFIG_BT_CTLR_SYNC_ISO) || defined(CONFIG_BT_CTLR_CONN_ISO)
 		struct node_rx_iso_meta rx_iso_meta;
 #endif
-#if defined(CONFIG_BT_CTLR_RX_PDU_META)
-		lll_rx_pdu_meta_t  rx_pdu_meta;
-#endif /* CONFIG_BT_CTLR_RX_PDU_META */
 	};
+#if defined(CONFIG_BT_CTLR_RX_PDU_META)
+	union {
+		lll_rx_pdu_meta_t rx_pdu_meta __aligned(4);
+		struct {
+			uint8_t _pdu_offset[LLL_RX_PDU_META_PDU_OFFSET];
+			uint8_t pdu[0];
+		};
+	};
+#else /* !CONFIG_BT_CTLR_RX_PDU_META */
 	union {
 		uint8_t    pdu[0] __aligned(4);
 	};
+#endif /* !CONFIG_BT_CTLR_RX_PDU_META */
 };
 
 enum {
