@@ -566,9 +566,11 @@ uint8_t ll_sync_terminate(uint16_t handle)
 		return BT_HCI_ERR_CMD_DISALLOWED;
 	}
 
-	/* Check and stop any auxiliary PDU receptions */
+	/* Check and stop any auxiliary PDU receptions; chains are stopped by
+	 * parent, as in ull_scan_disable(), even if lll_aux is already cleared.
+	 */
 	lll_aux = sync->lll.lll_aux;
-	if (lll_aux) {
+	if (IS_ENABLED(CONFIG_BT_CTLR_SCAN_AUX_USE_CHAINS) || lll_aux) {
 #if defined(CONFIG_BT_CTLR_SCAN_AUX_USE_CHAINS)
 		err = ull_scan_aux_stop(&sync->lll);
 #else /* !CONFIG_BT_CTLR_SCAN_AUX_USE_CHAINS */
