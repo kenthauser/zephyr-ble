@@ -25,6 +25,7 @@
 
 #include "util/util.h"
 #include "util/memq.h"
+#include "util/mayfly.h"
 #include "util/mem.h"
 #include "util/dbuf.h"
 
@@ -1528,7 +1529,9 @@ static void le_encrypt(struct net_buf *buf, struct net_buf **evt)
 	struct bt_hci_rp_le_encrypt *rp;
 	uint8_t enc_data[16];
 
+	(void)ecb_acquire(TICKER_USER_ID_THREAD);
 	ecb_encrypt(cmd->key, cmd->plaintext, enc_data, NULL);
+	ecb_release();
 
 	rp = hci_cmd_complete(evt, sizeof(*rp));
 

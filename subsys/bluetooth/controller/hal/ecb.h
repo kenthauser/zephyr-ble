@@ -29,3 +29,15 @@ void ecb_encrypt(uint8_t const *const key_le, uint8_t const *const clear_text_le
 void ecb_encrypt_nonblocking(struct ecb *e);
 
 int ecb_ut(void);
+
+/* Arbitration around any use of the AES block, supplied by each vendor in
+ * hal/ecb_vendor_hal.h:
+ *
+ *   bool ecb_acquire(uint8_t caller_id);
+ *   void ecb_release(void);
+ *
+ * caller_id is the calling context's mayfly id (TICKER_USER_ID_*). A thread
+ * (TICKER_USER_ID_THREAD) may wait and always gets the block; any other
+ * caller gets an answer at once and handles false itself.
+ */
+#include "hal/ecb_vendor_hal.h"
