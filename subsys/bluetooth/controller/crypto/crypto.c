@@ -7,6 +7,7 @@
 #include "common/bt_str.h"
 
 #include "util/memq.h"
+#include "util/mayfly.h"
 
 #include "hal/ecb.h"
 #include "ll_sw/lll.h"
@@ -26,7 +27,7 @@ int bt_encrypt_le(const uint8_t key[16], const uint8_t plaintext[16],
 	LOG_DBG("key %s", bt_hex(key, 16));
 	LOG_DBG("plaintext %s", bt_hex(plaintext, 16));
 
-	ecb_encrypt(key, plaintext, enc_data, NULL);
+	ecb_encrypt_from(TICKER_USER_ID_THREAD, key, plaintext, enc_data, NULL);
 
 	LOG_DBG("enc_data %s", bt_hex(enc_data, 16));
 
@@ -39,7 +40,7 @@ int bt_encrypt_be(const uint8_t key[16], const uint8_t plaintext[16],
 	LOG_DBG("key %s", bt_hex(key, 16));
 	LOG_DBG("plaintext %s", bt_hex(plaintext, 16));
 
-	ecb_encrypt_be(key, plaintext, enc_data);
+	ecb_encrypt_be_from(TICKER_USER_ID_THREAD, key, plaintext, enc_data);
 
 	LOG_DBG("enc_data %s", bt_hex(enc_data, 16));
 

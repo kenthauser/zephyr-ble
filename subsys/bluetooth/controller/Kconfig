@@ -211,6 +211,13 @@ config BT_CTLR_CRYPTO
 	  and Controller-based privacy, so with it, disabling this option also
 	  disables both.
 
+
+config BT_CTLR_ECB_ARBITRATION
+	bool
+	help
+	  Selected by a vendor whose AES block is shared with other crypto users
+	  and needs arbitration (hal/ecb.h).
+
 config BT_CTLR_HCI_VS_BUILD_INFO
 	string "Zephyr HCI VS Build Info string"
 	default ""

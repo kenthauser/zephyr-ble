@@ -41,4 +41,8 @@ target_include_directories(mocks PUBLIC
   ${ZEPHYR_BASE}/include/zephyr/bluetooth
 )
 
+# The mock is the vendor: its AES block is arbitrated (hal/ecb_vendor_hal.h), so a test can
+# fake a busy block
+target_compile_definitions(mocks PUBLIC CONFIG_BT_CTLR_ECB_ARBITRATION=1)
+
 target_link_libraries(mocks PRIVATE test_interface)

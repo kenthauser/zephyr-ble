@@ -13,6 +13,7 @@
 
 #include "hal/cpu.h"
 #include "hal/ccm.h"
+#include "hal/ecb.h"
 
 #include "util/util.h"
 #include "util/mem.h"
@@ -977,6 +978,28 @@ bool ull_filter_lll_rl_addr_allowed(uint8_t id_addr_type,
 	return true;
 }
 
+/* bt_rpa_irk_matches() for the LLL: the same ah() (Vol 3 Part H 2.2.2),
+ * using the AES block as the LLL (no wait). The host's path waits for the
+ * block (bt_encrypt_le()), which a controller context must not do; a busy
+ * block leaves the address unresolved this time, and the peer sends again.
+ */
+static bool rpa_irk_matches_lll(const uint8_t irk[16], const uint8_t *addr)
+{
+	uint8_t r[16] = { 0 };
+	uint8_t hash[16];
+
+	/* r' = padding || prand, little-endian: prand is addr[5..3] */
+	memcpy(r, &addr[3], 3);
+
+	if (!ecb_ready(TICKER_USER_ID_LLL)) {
+		return false;
+	}
+	ecb_encrypt_from(TICKER_USER_ID_LLL, irk, r, hash, NULL);
+
+	/* ah() is the least significant 24 bits: hash = addr[2..0] */
+	return !memcmp(addr, hash, 3);
+}
+
 bool ull_filter_lll_rl_addr_resolve(uint8_t id_addr_type,
 				    const uint8_t *id_addr, uint8_t rl_idx)
 {
@@ -986,8 +1009,7 @@ bool ull_filter_lll_rl_addr_resolve(uint8_t id_addr_type,
 	}
 
 	if ((id_addr_type != 0U) && ((id_addr[5] & 0xc0) == 0x40)) {
-		return bt_rpa_irk_matches(rl[rl_idx].local_irk,
-					  (bt_addr_t *)id_addr);
+		return rpa_irk_matches_lll(rl[rl_idx].local_irk, id_addr);
 	}
 
 	return false;

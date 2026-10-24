@@ -19,6 +19,7 @@
 #define CONFIG_BT_CTLR_TRPA_CACHE_SIZE 4
 #define CONFIG_BT_CTLR_SW_DEFERRED_PRIVACY 1
 #define CONFIG_BT_LOG_LEVEL 1
+#define CONFIG_BT_CTLR_ECB_ARBITRATION 1
 
 #include "ll_sw/ull_filter.c"
 
@@ -129,6 +130,58 @@ void helper_trpa_add(int skew)
 	zassert_equal(pos, FILTER_IDX_NONE, "");
 }
 
+/* ah() sample data, Core Vol 3 Part H D.7, little-endian */
+static const uint8_t ah_irk[IRK_SIZE] = { 0x9b, 0x7d, 0x39, 0x0a, 0xa6, 0x10, 0x10, 0x34,
+					  0x05, 0xad, 0xc8, 0x57, 0xa3, 0x34, 0x02, 0xec };
+static const uint8_t ah_m[16] = { 0x94, 0x81, 0x70 };
+static const uint8_t ah_aes[16] = { 0xaa, 0xfb, 0x0d, 0xc4, 0xdc, 0x1b, 0x8c, 0xa4,
+				    0x11, 0x23, 0xbe, 0x2e, 0xb7, 0x5f, 0x9d, 0x15 };
+/* The RPA: hash = ah = 0x0dfbaa, prand = 0x708194 */
+static const uint8_t ah_rpa[BDADDR_SIZE] = { 0xaa, 0xfb, 0x0d, 0x94, 0x81, 0x70 };
+
+static struct {
+	bool ready;
+	uint8_t ready_calls;
+	uint8_t ready_caller;
+	uint8_t encrypt_calls;
+	uint8_t encrypt_caller;
+} ecb_test;
+
+bool ecb_ready(uint8_t caller_id)
+{
+	ecb_test.ready_calls++;
+	ecb_test.ready_caller = caller_id;
+
+	return ecb_test.ready;
+}
+
+/* The D.7 block for its key and plaintext; any other input gives a block that matches nothing */
+void ecb_encrypt_from(uint8_t caller_id, uint8_t const *const key_le,
+		      uint8_t const *const clear_text_le, uint8_t *const cipher_text_le,
+		      uint8_t *const cipher_text_be)
+{
+	ARG_UNUSED(cipher_text_be);
+
+	ecb_test.encrypt_calls++;
+	ecb_test.encrypt_caller = caller_id;
+
+	if (!memcmp(key_le, ah_irk, sizeof(ah_irk)) && !memcmp(clear_text_le, ah_m, sizeof(ah_m))) {
+		memcpy(cipher_text_le, ah_aes, sizeof(ah_aes));
+	} else {
+		memset(cipher_text_le, 0xff, sizeof(ah_aes));
+	}
+}
+
+/* Resolving list entry 0 with local IRK irk; address resolution enabled */
+static void helper_rl_setup(const uint8_t irk[IRK_SIZE])
+{
+	memset(rl, 0, sizeof(rl));
+	rl[0].taken = 1U;
+	rl[0].lirk = 1U;
+	memcpy(rl[0].local_irk, irk, IRK_SIZE);
+	rl_enable = 1U;
+}
+
 static void before(void *data)
 {
 	ARG_UNUSED(data);
@@ -136,6 +189,8 @@ static void before(void *data)
 	/* Run before each test - clear the cache so we start fresh each time. */
 	prpa_cache_clear();
 	trpa_cache_clear();
+
+	memset(&ecb_test, 0, sizeof(ecb_test));
 }
 
 ZTEST_SUITE(test_ctrl_sw_privacy_unit, NULL, NULL, before, NULL, NULL);
@@ -176,4 +231,45 @@ ZTEST(test_ctrl_sw_privacy_unit, test_privacy_add_stress)
 		helper_trpa_add(skew);
 		trpa_cache_clear();
 	}
+}
+
+/* The LLL's TargetA check (ull_filter_lll_rl_addr_resolve()) with the AES block busy: the address
+ * is left unresolved, without encrypting, and the peer sends again.
+ */
+ZTEST(test_ctrl_sw_privacy_unit, test_rl_addr_resolve_aes_busy)
+{
+	helper_rl_setup(ah_irk);
+	ecb_test.ready = false;
+
+	zassert_false(ull_filter_lll_rl_addr_resolve(BT_ADDR_LE_RANDOM, ah_rpa, 0U));
+	zassert_equal(ecb_test.ready_calls, 1U);
+	zassert_equal(ecb_test.ready_caller, TICKER_USER_ID_LLL);
+	zassert_equal(ecb_test.encrypt_calls, 0U);
+}
+
+/* The same address with the block free: resolved, the block used once as the LLL */
+ZTEST(test_ctrl_sw_privacy_unit, test_rl_addr_resolve)
+{
+	helper_rl_setup(ah_irk);
+	ecb_test.ready = true;
+
+	zassert_true(ull_filter_lll_rl_addr_resolve(BT_ADDR_LE_RANDOM, ah_rpa, 0U));
+	zassert_equal(ecb_test.ready_calls, 1U);
+	zassert_equal(ecb_test.ready_caller, TICKER_USER_ID_LLL);
+	zassert_equal(ecb_test.encrypt_calls, 1U);
+	zassert_equal(ecb_test.encrypt_caller, TICKER_USER_ID_LLL);
+}
+
+/* Another device's IRK does not resolve the address */
+ZTEST(test_ctrl_sw_privacy_unit, test_rl_addr_resolve_other_irk)
+{
+	uint8_t irk[IRK_SIZE];
+
+	memcpy(irk, ah_irk, sizeof(irk));
+	irk[0] ^= 0x01U;
+	helper_rl_setup(irk);
+	ecb_test.ready = true;
+
+	zassert_false(ull_filter_lll_rl_addr_resolve(BT_ADDR_LE_RANDOM, ah_rpa, 0U));
+	zassert_equal(ecb_test.encrypt_calls, 1U);
 }

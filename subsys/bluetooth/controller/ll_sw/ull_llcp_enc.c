@@ -17,6 +17,7 @@
 #include "util/util.h"
 #include "util/mem.h"
 #include "util/memq.h"
+#include "util/mayfly.h"
 #include "util/dbuf.h"
 
 #include "pdu_df.h"
@@ -145,12 +146,20 @@ enum {
 #endif /* CONFIG_BT_PERIPHERAL */
 
 
-static void enc_setup_lll(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t role)
+/* Returns false when the AES engine is busy (held by another context): the
+ * caller parks in its WAIT_TX_* state and is re-run at the next event.
+ */
+static bool enc_setup_lll(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t role)
 {
 	/* TODO(thoh): Move LLL/CCM manipulation to ULL? */
 
+	if (!ecb_ready(TICKER_USER_ID_ULL_HIGH)) {
+		return false;
+	}
+
 	/* Calculate the Session Key */
-	ecb_encrypt(&ctx->data.enc.ltk[0], &ctx->data.enc.skd[0], NULL, &conn->lll.ccm_rx.key[0]);
+	ecb_encrypt_from(TICKER_USER_ID_ULL_HIGH, &ctx->data.enc.ltk[0], &ctx->data.enc.skd[0],
+			 NULL, &conn->lll.ccm_rx.key[0]);
 
 	/* Copy the Session Key */
 	memcpy(&conn->lll.ccm_tx.key[0], &conn->lll.ccm_rx.key[0], sizeof(conn->lll.ccm_tx.key));
@@ -173,6 +182,8 @@ static void enc_setup_lll(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t ro
 		conn->lll.ccm_tx.direction = 1U;
 		conn->lll.ccm_rx.direction = 0U;
 	}
+
+	return true;
 }
 
 #if defined(CONFIG_BT_CENTRAL)
@@ -325,10 +336,10 @@ static void lp_enc_send_pause_enc_rsp(struct ll_conn *conn, struct proc_ctx *ctx
 static void lp_enc_send_start_enc_rsp(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t evt,
 				      void *param)
 {
-	if (!llcp_tx_alloc_peek(conn, ctx)) {
+	if (!llcp_tx_alloc_peek(conn, ctx) ||
+	    !enc_setup_lll(conn, ctx, BT_HCI_ROLE_CENTRAL)) {
 		ctx->state = LP_ENC_STATE_WAIT_TX_START_ENC_RSP;
 	} else {
-		enc_setup_lll(conn, ctx, BT_HCI_ROLE_CENTRAL);
 		llcp_lp_enc_tx(conn, ctx, PDU_DATA_LLCTRL_TYPE_START_ENC_RSP);
 
 		/* Wait for LL_START_ENC_RSP */
@@ -840,10 +851,10 @@ static void rp_enc_send_enc_rsp(struct ll_conn *conn, struct proc_ctx *ctx, uint
 static void rp_enc_send_start_enc_req(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t evt,
 				      void *param)
 {
-	if (!llcp_tx_alloc_peek(conn, ctx)) {
+	if (!llcp_tx_alloc_peek(conn, ctx) ||
+	    !enc_setup_lll(conn, ctx, BT_HCI_ROLE_PERIPHERAL)) {
 		ctx->state = RP_ENC_STATE_WAIT_TX_START_ENC_REQ;
 	} else {
-		enc_setup_lll(conn, ctx, BT_HCI_ROLE_PERIPHERAL);
 		llcp_rp_enc_tx(conn, ctx, PDU_DATA_LLCTRL_TYPE_START_ENC_REQ);
 		/* Wait for the LL_START_ENC_RSP */
 		ctx->rx_opcode = PDU_DATA_LLCTRL_TYPE_START_ENC_RSP;
