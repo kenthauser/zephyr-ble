@@ -566,9 +566,11 @@ uint8_t ll_sync_terminate(uint16_t handle)
 		return BT_HCI_ERR_CMD_DISALLOWED;
 	}
 
-	/* Check and stop any auxiliary PDU receptions */
+	/* Check and stop any auxiliary PDU receptions; chains are stopped by
+	 * parent, as in ull_scan_disable(), even if lll_aux is already cleared.
+	 */
 	lll_aux = sync->lll.lll_aux;
-	if (lll_aux) {
+	if (IS_ENABLED(CONFIG_BT_CTLR_SCAN_AUX_USE_CHAINS) || lll_aux) {
 #if defined(CONFIG_BT_CTLR_SCAN_AUX_USE_CHAINS)
 		err = ull_scan_aux_stop(&sync->lll);
 #else /* !CONFIG_BT_CTLR_SCAN_AUX_USE_CHAINS */
@@ -585,6 +587,28 @@ uint8_t ll_sync_terminate(uint16_t handle)
 		LL_ASSERT_DBG(!aux->parent);
 #endif /* !CONFIG_BT_CTLR_SCAN_AUX_USE_CHAINS */
 	}
+
+#if !defined(CONFIG_BT_CTLR_SCAN_AUX_USE_CHAINS)
+	/* Mirror the scan-context sweep in ull_scan_disable() and stop it by
+	 * parent. Harmless when no such context exists, as the loop finds none.
+	 */
+	for (uint8_t aux_handle = 0; aux_handle < CONFIG_BT_CTLR_SCAN_AUX_SET;
+	     aux_handle++) {
+		struct ll_scan_aux_set *aux_set;
+
+		aux_set = ull_scan_aux_set_get(aux_handle);
+		if (aux_set->parent != &sync->lll) {
+			continue;
+		}
+
+		err = ull_scan_aux_stop(aux_set);
+		if (err && (err != -EALREADY)) {
+			return BT_HCI_ERR_CMD_DISALLOWED;
+		}
+
+		LL_ASSERT_DBG(aux_set->parent != &sync->lll);
+	}
+#endif /* !CONFIG_BT_CTLR_SCAN_AUX_USE_CHAINS */
 
 #if defined(CONFIG_BT_CTLR_SYNC_TRANSFER_RECEIVER)
 	/* Clean up node_rx_sync_estab if still present */
