@@ -40,4 +40,32 @@ configdefault BT_CTLR_ISOAL_SINKS
 
 endif # BT_AUDIO && BT_LL_SW_SPLIT
 
+config APP_AESX
+	bool "aesx: application AES-CCM, AES engine contention test"
+	depends on BT_GATT_CLIENT
+	select CRYPTO
+	select CRYPTO_MBEDTLS_SHIM if !DT_HAS_TI_CC23X0_AES_ENABLED
+	help
+	  The aesx shell command: the sender AES-CCM encrypts each GATT write,
+	  the receiver decrypts and verifies it. Where the controller encrypts
+	  the link on the same AES engine, this tests contention for the engine.
+	  AES goes through the Zephyr crypto API: crypto_cc23x0 where present,
+	  else the Mbed TLS shim. src/aesx.c.
+
+if APP_AESX
+
+# Three sessions: the sender/receiver's encrypt and decrypt, and the background load's.
+configdefault CRYPTO_MBEDTLS_SHIM_MAX_SESSION
+	default 3
+
+config APP_AESX_BG_LEN
+	int "aesx background load: bytes per CCM op"
+	default 512
+
+config APP_AESX_BG_STACK
+	int "aesx background load: thread stack size"
+	default 1024
+
+endif # APP_AESX
+
 source "Kconfig.zephyr"

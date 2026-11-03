@@ -145,6 +145,9 @@ enum {
 #endif /* CONFIG_BT_PERIPHERAL */
 
 
+/* Test instrumentation: session-key derivations deferred because the AES block was busy. */
+uint32_t llcp_enc_retry;
+
 /* False while the AES block is busy: the caller stays in WAIT_TX_* and retries next event. */
 static bool enc_setup_lll(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t role)
 {
@@ -156,6 +159,7 @@ static bool enc_setup_lll(struct ll_conn *conn, struct proc_ctx *ctx, uint8_t ro
 	err = ecb_encrypt(&ctx->data.enc.ltk[0], &ctx->data.enc.skd[0], NULL,
 			  &conn->lll.ccm_rx.key[0]);
 	if (err == -EAGAIN) {
+		llcp_enc_retry++;
 		return false;
 	}
 
